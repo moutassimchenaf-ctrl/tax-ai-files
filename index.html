@@ -50,8 +50,8 @@
     .reveal{opacity:0;transform:translateY(10px)}
     .reveal.in{opacity:1;transform:translateY(0);transition:opacity .4s ease,transform .4s ease}
     .load-more{display:flex;justify-content:center;margin:20px 0 4px}
-    .btn{background:#fff;border:1px solid var(--line);color:#var(--navy-900);padding:8px 14px;border-radius:10px;cursor:pointer;transition:.2s;font-size:13px;font-weight:500}
-    .btn:hover{border-color:var(--teal-600);background:#f0fdfa;color:#teal-600}
+    .btn{background:#fff;border:1px solid var(--line);color:var(--navy-900);padding:8px 14px;border-radius:10px;cursor:pointer;transition:.2s;font-size:13px;font-weight:500}
+    .btn:hover{border-color:var(--teal-600);background:#f0fdfa;color:var(--teal-600)}
     .btn.loading{position:relative;color:transparent}
     .btn.loading::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;border:2px solid var(--teal-600);border-right-color:transparent;left:calc(50% - 7px);top:calc(50% - 7px);animation:spin .8s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
@@ -109,12 +109,28 @@
 
 <script>
 (function(){
-  // Prefer opening PDFs from your Pages domain (avoids many blockers).
   const OWNER = "moutassimchenaf-ctrl";
   const REPO  = "tax-ai-files";
-  const RAW_BASE = `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/`;
+  const API_LIST = `https://api.github.com/repos/${OWNER}/${REPO}/contents`;
 
-  // === Data (keep your filenames as you typed them) ==========================
+  // Normalize for matching: lower, remove extension, collapse punctuation to spaces
+  const normalize = s => s
+    .toLowerCase()
+    .replace(/\.[^.]+$/,'')
+    .replace(/[^\p{L}\p{N}]+/gu,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+
+  // Simple token-set similarity (Jaccard)
+  function jaccard(a,b){
+    const A = new Set(a.split(' ').filter(w=>w.length>1));
+    const B = new Set(b.split(' ').filter(w=>w.length>1));
+    let inter = 0; for (const w of A) if (B.has(w)) inter++;
+    const union = new Set([...A, ...B]).size || 1;
+    return inter / union;
+  }
+
+  // Your content data (desired filenames)
   const DATA = [
     {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE MD 229: Free Zone Qualifying Activities Expansion",date_display:"Sep 2025",published_at:"2025-09-01",summary:"Ministerial Decision 229 expands the list of qualifying activities for Free Zone tax benefits, providing greater clarity on eligible business operations.",file:"UAE MD 229: FZ Qualifying Activities Expansion - Sept 2025.pdf",updated:true},
     {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE MD 230: Recognised Price Reporting Agencies",date_display:"Sep 2025",published_at:"2025-09-01",summary:"Ministerial Decision 230 establishes the framework for recognised price reporting agencies for transfer pricing purposes.",file:"UAE MD 230: Recognised Price Reporting Agencies - Sept 2025.pdf",updated:true},
@@ -143,55 +159,35 @@
     {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Qualifying Investment Funds",date_display:"Apr 2025",published_at:"2025-04-01",summary:"Comprehensive guide on qualifying investment funds under UAE corporate tax, including eligibility criteria and tax treatment.",file:"UAE Qualifying Investment Funds - April 2025.pdf"}
   ];
 
-  // === Smart URL building & fallback ========================================
-  const enc = encodeURIComponent;
-  const localURL = name => `./${enc(name)}`;
-  const rawURL   = name => `${RAW_BASE}${enc(name)}`;
+  // Build a map of actual repo PDF filenames so links always match reality
+  let ACTUAL_FILES = []; // array of real names
+  let RESOLVED = new Map(); // desired name -> actual name
 
-  // Generate filename *variants* to recover from tiny naming differences.
-  function filenameVariants(name){
-    const set = new Set();
-    const add = s => set.add(s.replace(/\s{2,}/g,' ').trim()); // collapse spaces
-
-    add(name);
-
-    // Hyphen <-> en-dash variants
-    add(name.replace(/ - /g, " – "));
-    add(name.replace(/ – /g, " - "));
-
-    // With/without colon after "MD <num>"
-    add(name.replace(/\bMD\s(\d+)\b(?!:)/, "MD $1:")); // insert colon
-    add(name.replace(/\bMD\s(\d+):\s?/, "MD $1 "));    // remove colon
-
-    // Also try normalizing any fancy quotes/dashes
-    add(name.replace(/[–—]/g, "-"));
-
-    return [...set];
+  async function loadFileIndex(){
+    const res = await fetch(API_LIST);
+    const list = await res.json();
+    ACTUAL_FILES = (Array.isArray(list) ? list : []).filter(x => x.type === "file" && /\.pdf$/i.test(x.name)).map(x => x.name);
   }
 
-  // Try a list of candidate URLs until one responds OK, then open it
-  async function openSmart(name){
-    const files = filenameVariants(name);
-    const candidates = [];
+  function resolveFilename(desired){
+    if (RESOLVED.has(desired)) return RESOLVED.get(desired);
 
-    // Prefer local (Pages) first, then RAW as fallback
-    files.forEach(f => candidates.push(localURL(f)));
-    files.forEach(f => candidates.push(rawURL(f)));
-
-    for (const url of candidates){
-      try{
-        const res = await fetch(url, { method: 'HEAD' });
-        if (res.ok) {
-          window.open(url, '_blank', 'noopener,noreferrer');
-          return;
-        }
-      }catch(e){ /* ignore and try next */ }
+    const want = normalize(desired);
+    // exact normalized match
+    let best = null, bestScore = -1;
+    for (const f of ACTUAL_FILES){
+      const nf = normalize(f);
+      if (nf === want){ best = f; bestScore = 1; break; }
+      const score = jaccard(want, nf);
+      if (score > bestScore){ bestScore = score; best = f; }
     }
-    // Last resort: open the first local candidate anyway
-    window.open(candidates[0], '_blank', 'noopener,noreferrer');
+    // require a reasonable similarity; otherwise just use desired as-is
+    const finalName = bestScore >= 0.5 ? best : desired;
+    RESOLVED.set(desired, finalName);
+    return finalName;
   }
 
-  // === UI rendering ==========================================================
+  // ------- UI plumbing (unchanged visuals) -------
   const grid = document.getElementById('grid');
   const loadMoreBtn = document.getElementById('loadMore');
   const filterChips = Array.from(document.querySelectorAll('.filters .chip'));
@@ -218,12 +214,13 @@
   function cardHTML(a){
     const newDot = a.updated ? '<span class="newdot" title="Updated"></span>' : '';
     const pdfTitle = a.title.replace(/"/g,'&quot;');
-    // Provide a baseline href (local) but use smart opener on click
-    const baseline = localURL(a.file);
+    const realName = resolveFilename(a.file);
+    const href = `./${encodeURIComponent(realName)}`; // serve from your domain
+
     return `
       <article class="card reveal" itemscope itemtype="https://schema.org/Article" data-j="${a.jurisdiction.toLowerCase()}">
         ${newDot}
-        <a href="${baseline}" data-smartpdf="${a.file}" title="Open PDF: ${pdfTitle}">
+        <a href="${href}" target="_blank" rel="noopener" title="Open PDF: ${pdfTitle}">
           <div class="c-pad">
             <div class="date" itemprop="datePublished" content="${a.published_at}">${a.date_display}</div>
             <h3 class="title" itemprop="headline">${a.title}</h3>
@@ -235,11 +232,10 @@
           </div>
         </a>
         <div class="actions">
-          <a class="icon-btn" href="${baseline}" data-smartpdf="${a.file}" title="Open PDF">
+          <a class="icon-btn" href="${href}" target="_blank" rel="noopener" title="Open PDF">
             <svg width="14" height="14"><use href="#icon-external"></use></svg>
           </a>
-          <!-- Removed download attribute so it opens in a tab -->
-          <a class="icon-btn" href="${baseline}" data-smartpdf="${a.file}" title="Open PDF">
+          <a class="icon-btn" href="${href}" target="_blank" rel="noopener" title="Open PDF">
             <svg width="14" height="14"><use href="#icon-pdf"></use></svg>
           </a>
         </div>
@@ -289,15 +285,6 @@
     }, 400);
   });
 
-  // Delegate clicks on any element with data-smartpdf to the smart opener
-  document.addEventListener('click', (e)=>{
-    const a = e.target.closest('a[data-smartpdf]');
-    if(!a) return;
-    e.preventDefault();
-    const name = a.getAttribute('data-smartpdf');
-    openSmart(name);
-  });
-
   // Ticker
   let tickIdx = 0;
   function tickRotate(){
@@ -313,10 +300,14 @@
     setInterval(show, interval);
   }
 
-  setCounts();
-  activateChip('all');
-  render();
-  tickRotate();
+  // Boot: fetch actual names, then draw UI using those names
+  (async function init(){
+    await loadFileIndex();
+    setCounts();
+    activateChip('all');
+    render();
+    tickRotate();
+  })();
 })();
 </script>
 </body>
