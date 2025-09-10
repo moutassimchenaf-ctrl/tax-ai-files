@@ -1,8 +1,262 @@
-<!doctype html>
-<html>
-<head><meta charset="utf-8"><title>Tax.AI Files</title></head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tax.AI - Insights</title>
+  <style>
+    :root{
+      --navy-900:#0a1628; --navy-700:#1e3a8a; --teal-600:#0891b2; --teal-500:#14b8a6;
+      --gold-500:#fbbf24; --ink-700:#1f2937; --ink-500:#6b7280; --soft:#f8fafc;
+      --line:#e5e7eb; --r:16px; --sh:0 8px 24px rgba(0,0,0,.05);
+    }
+    #insights{background:linear-gradient(180deg,#fff,#fafafa);border-top:1px solid var(--line);font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif}
+    #insights .wrap{max-width:1400px;margin:0 auto;padding:24px 16px;color:var(--ink-700)}
+    a{text-decoration:none!important}
+    .header-section{text-align:center;margin-bottom:28px}
+    h2{font:300 clamp(24px,4vw,36px)/1.2 Inter,system-ui;color:var(--navy-900);letter-spacing:-.01em;margin-bottom:4px}
+    .sub{color:var(--ink-500);margin-bottom:12px;max-width:550px;margin-left:auto;margin-right:auto;font-size:14px;line-height:1.4}
+    .filters-wrap{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#fff,rgba(255,255,255,.94));backdrop-filter:saturate(140%) blur(6px);border-bottom:1px solid var(--line)}
+    .filters{display:flex;gap:6px;align-items:center;padding:8px 0;flex-wrap:wrap;justify-content:center}
+    .chip{border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--navy-900);padding:6px 10px;font-size:12px;cursor:pointer;transition:.2s;font-weight:500}
+    .chip .count{color:var(--ink-500);margin-left:4px}
+    .chip:hover{border-color:#cbd5e1;background:#f9fafb}
+    .chip.active{background:var(--teal-600);color:#fff;border-color:var(--teal-600)}
+    .chip.active .count{color:#e6fffb}
+    .ticker{display:flex;gap:6px;align-items:center;min-height:32px;margin:4px 0 0;justify-content:center}
+    .tick-label{font-size:11px;font-weight:600;color:#075985;background:#ecfeff;border:1px solid #bae6fd;border-radius:999px;padding:3px 6px}
+    .tick-item{overflow:hidden;position:relative;height:20px;flex:1;max-width:500px}
+    .tick-item span{position:absolute;left:0;top:0;right:0;white-space:nowrap;color:var(--ink-500);opacity:0;transform:translateY(6px);transition:opacity .4s,transform .4s;text-align:center;font-size:12px}
+    .tick-item span.show{opacity:1;transform:translateY(0)}
+    .grid{display:grid;gap:16px;grid-template-columns:repeat(4,1fr);margin-top:16px}
+    @media (max-width:1200px){.grid{grid-template-columns:repeat(3,1fr)}}
+    @media (max-width:768px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:480px){.grid{grid-template-columns:1fr}}
+    .card{background:#fff;border:1px solid var(--line);border-radius:var(--r);box-shadow:0 0 0 rgba(0,0,0,0);transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden;cursor:pointer}
+    .card:hover{transform:translateY(-3px);box-shadow:var(--sh)}
+    .c-pad{padding:12px}
+    .date{font-size:10px;color:var(--teal-600);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+    .title{font:600 14px/1.3 Inter,system-ui;color:var(--navy-900);margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .excerpt{color:var(--ink-500);font-size:11px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:8px}
+    .meta{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+    .badge{font-size:9px;border:1px solid var(--line);border-radius:999px;padding:2px 6px;background:#fff;color:var(--ink-700);font-weight:500}
+    .badge.authority{background:#ecfeff;border-color:#bae6fd;color:#075985}
+    .newdot{position:absolute;right:8px;top:8px;width:6px;height:6px;border-radius:50%;background:var(--gold-500);box-shadow:0 0 0 0 rgba(251,191,36,.7);animation:pulse 2s infinite}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(251,191,36,.7)}70%{box-shadow:0 0 0 8px rgba(251,191,36,0)}100%{box-shadow:0 0 0 0 rgba(251,191,36,0)}}
+    .actions{position:absolute;right:8px;bottom:8px;display:flex;gap:4px;opacity:0;transform:translateY(4px);transition:.2s}
+    .card:hover .actions{opacity:1;transform:translateY(0)}
+    .icon-btn{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;cursor:pointer;transition:.2s}
+    .icon-btn:hover{border-color:var(--teal-600);background:#f0fdfa}
+    .reveal{opacity:0;transform:translateY(10px)}
+    .reveal.in{opacity:1;transform:translateY(0);transition:opacity .4s ease,transform .4s ease}
+    .load-more{display:flex;justify-content:center;margin:20px 0 4px}
+    .btn{background:#fff;border:1px solid var(--line);color:var(--navy-900);padding:8px 14px;border-radius:10px;cursor:pointer;transition:.2s;font-size:13px;font-weight:500}
+    .btn:hover{border-color:var(--teal-600);background:#f0fdfa;color:var(--teal-600)}
+    .btn.loading{position:relative;color:transparent}
+    .btn.loading::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;border:2px solid var(--teal-600);border-right-color:transparent;left:calc(50% - 7px);top:calc(50% - 7px);animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){
+      .card,.actions,.reveal{transition:none}
+      .card:hover{transform:none}
+      .tick-item span{transition:none}
+      .newdot{animation:none}
+      .btn.loading::after{animation:none}
+    }
+  </style>
+</head>
 <body>
-  <h1>Tax.AI Files</h1>
-  <p>Example PDF: <a href="Bahrain%20NBR%20Updates%20VAT%20Guidance%20on%20TOGC-%20August%202025.pdf">Bahrain VAT TOGC Guidance</a></p>
+<section id="insights" aria-label="Tax Insights">
+  <div class="wrap">
+    <div class="header-section">
+      <h2>Tax Insights</h2>
+      <p class="sub">Concise summaries of the latest tax updates with links to the official sources. Choose a jurisdiction to filter through our comprehensive collection of regulatory documents.</p>
+    </div>
+
+    <div class="filters-wrap">
+      <div class="wrap">
+        <div class="filters" role="tablist" aria-label="Jurisdiction filters">
+          <button class="chip active" data-j="all" role="tab" aria-selected="true">All <span class="count"></span></button>
+          <button class="chip" data-j="uae" role="tab" aria-selected="false">UAE <span class="count"></span></button>
+          <button class="chip" data-j="ksa" role="tab" aria-selected="false">KSA <span class="count"></span></button>
+          <button class="chip" data-j="bahrain" role="tab" aria-selected="false">Bahrain <span class="count"></span></button>
+          <button class="chip" data-j="oman" role="tab" aria-selected="false">Oman <span class="count"></span></button>
+          <button class="chip" data-j="qatar" role="tab" aria-selected="false">Qatar <span class="count"></span></button>
+        </div>
+        <div class="ticker" aria-live="polite">
+          <span class="tick-label">Latest Updates</span>
+          <div class="tick-item"><span id="tickText">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="grid" class="grid" aria-live="polite"></div>
+
+    <div class="load-more">
+      <button id="loadMore" class="btn">Load more</button>
+    </div>
+  </div>
+
+  <!-- SVG icons -->
+  <svg style="display:none" aria-hidden="true">
+    <symbol id="icon-pdf" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm0 2.5L18.5 9H14zM7 13h3a2 2 0 1 1 0 4H9v2H7zm2 2h1a1 1 0 1 0 0-2H9zm6-4h2a2 2 0 0 1 0 4h-1v2h-2zM8 9h8v2H8z"/>
+    </symbol>
+    <symbol id="icon-external" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M14 3h7v7h-2V7.41l-9.29 9.3-1.42-1.42 9.3-9.29H14zM5 5h6v2H7v10h10v-4h2v6H5z"/>
+    </symbol>
+  </svg>
+</section>
+
+<script>
+(function(){
+  // Serve files from the RAW host to avoid github.io being blocked by some clients
+  const RAW = "https://raw.githubusercontent.com/moutassimchenaf-ctrl/tax-ai-files/main/";
+
+  // Helper to build a safe URL from a filename (handles spaces, :, (), etc.)
+  const fileURL = (name) => RAW + encodeURIComponent(name);
+
+  const DATA = [
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE MD 229: Free Zone Qualifying Activities Expansion",date_display:"Sep 2025",published_at:"2025-09-01",summary:"Ministerial Decision 229 expands the list of qualifying activities for Free Zone tax benefits, providing greater clarity on eligible business operations.",file:"UAE MD 229: FZ Qualifying Activities Expansion - Sept 2025.pdf",updated:true},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE MD 230: Recognised Price Reporting Agencies",date_display:"Sep 2025",published_at:"2025-09-01",summary:"Ministerial Decision 230 establishes the framework for recognised price reporting agencies for transfer pricing purposes.",file:"UAE MD 230: Recognised Price Reporting Agencies - Sept 2025.pdf",updated:true},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Corporate Tax Return User Manual Comprehensive Filing Guide",date_display:"Sep 2025",published_at:"2025-09-01",summary:"Complete user manual for filing UAE corporate tax returns, including step-by-step guidance and common filing scenarios.",file:"UAE Corporate Tax Return User Manual Comprehensive Filing Guide.pdf",updated:true},
+    {jurisdiction:"Bahrain",authority:"NBR",category:["VAT"],title:"Bahrain NBR Updates VAT Guidance on TOGC",date_display:"Aug 2025",published_at:"2025-08-01",summary:"National Bureau for Revenue updates guidance on Transfer of Going Concern (TOGC) provisions under Bahrain VAT law.",file:"Bahrain NBR Updates VAT Guidance on TOGC- August 2025.pdf",updated:true},
+    {jurisdiction:"KSA",authority:"ZATCA",category:["VAT","E-Invoicing"],title:"KSA E-Invoicing – ZATCA Announces Wave 10",date_display:"Aug 2025",published_at:"2025-08-01",summary:"ZATCA announces the 10th wave of e-invoicing implementation, expanding mandatory compliance to additional business categories.",file:"KSA E-Invoicing - ZATCA Announces Wave 10 - August 2025.pdf",updated:true},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Corporate Tax Payments Process Guide",date_display:"Aug 2025",published_at:"2025-08-01",summary:"Comprehensive guide on UAE corporate tax payment processes, deadlines, and acceptable payment methods.",file:"UAE Corporate Tax Payments Process Guide.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Tax Group Financial Statements",date_display:"Aug 2025",published_at:"2025-08-01",summary:"Guidelines for preparation and submission of consolidated financial statements for UAE tax groups.",file:"UAE Tax Group Financial Statements - August 2025.pdf"},
+    {jurisdiction:"Qatar",authority:"MOF",category:["International Tax"],title:"Qatar Implements Pillar Two Rules for MNEs Effective FY 2025",date_display:"Jul 2025",published_at:"2025-07-01",summary:"Qatar implements OECD Pillar Two global minimum tax rules for multinational enterprises effective from fiscal year 2025.",file:"Qatar Implements Pillar Two Rules for MNEs Effective FY 2025 July 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Corporate Tax De-Registration Process Guide",date_display:"Jul 2025",published_at:"2025-07-01",summary:"Step-by-step guide for de-registering from UAE corporate tax, including requirements and timeline considerations.",file:"UAE Corporate Tax De-Registration Process Guide.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Late Registration Penalty Waiver",date_display:"Jul 2025",published_at:"2025-07-01",summary:"FTA announces penalty waiver provisions for late corporate tax registration under specific circumstances.",file:"UAE Late Registration Penalty Waiver - July 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Ministerial Decision 173 Depreciation on Fair Value Investment Properties",date_display:"Jul 2025",published_at:"2025-07-01",summary:"Ministerial Decision 173 clarifies depreciation treatment for investment properties measured at fair value.",file:"UAE Ministerial Decision 173 Depreciation on Fair Value Investment Properties.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE: Tax Technical Guidance Process",date_display:"Jul 2025",published_at:"2025-07-01",summary:"FTA outlines the process for obtaining technical guidance on complex tax matters and interpretation requests.",file:"UAE Tax Technical Guidance Process - July 2025.pdf"},
+    {jurisdiction:"Oman",authority:"MOF",category:["International Tax"],title:"Oman Introduces Domestic Minimum Top-up Tax for FY 2025",date_display:"Jun 2025",published_at:"2025-06-01",summary:"Oman introduces domestic minimum top-up tax as part of OECD Pillar Two implementation for fiscal year 2025.",file:"Oman Introduces Domestic Minimum Top-up Tax for FY 2025 June 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Cabinet Decision 55 Foreign Entity Exemption Extension",date_display:"Jun 2025",published_at:"2025-06-01",summary:"Cabinet Decision 55 extends the corporate tax exemption period for qualifying foreign entities operating in the UAE.",file:"UAE Cabinet Decision 55 Foreign Entity Exemption Extension.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Cabinet Decision 63 Unincorporated Partnerships as Taxable Persons",date_display:"Jun 2025",published_at:"2025-06-01",summary:"Cabinet Decision 63 clarifies the treatment of unincorporated partnerships as taxable persons under UAE corporate tax.",file:"UAE Cabinet Decision 63 Unincorporated Partnerships as Taxable Persons.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Corporate Tax Self Registration",date_display:"Jun 2025",published_at:"2025-06-01",summary:"Updated guidance on self-registration procedures for UAE corporate tax, including online portal navigation and requirements.",file:"UAE Corporate Tax Self Registration - June 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Family Foundations Corporate Tax Guide",date_display:"May 2025",published_at:"2025-05-01",summary:"Comprehensive guide on corporate tax treatment of family foundations, including qualification criteria and tax implications.",file:"UAE Family Foundations Corporate Tax Guide - May 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Ministerial Decision 96 Conditions to Exempt Real Estate Investment Trusts",date_display:"May 2025",published_at:"2025-05-01",summary:"Ministerial Decision 96 sets out the conditions for exempting Real Estate Investment Trusts from corporate tax.",file:"UAE Ministerial Decision 96 Conditions to Exempt Real Estate Investment Trusts - May 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE REIT Investors Corporate Tax Treatment Guide",date_display:"May 2025",published_at:"2025-05-01",summary:"Guidance on corporate tax treatment for investors in Real Estate Investment Trusts (REITs) in the UAE.",file:"UAE REIT Investors Corporate Tax Treatment Guide - May 2025.pdf"},
+    {jurisdiction:"KSA",authority:"ZATCA",category:["VAT"],title:"KSA VAT Implementing Regulations – Amendments (2025)",date_display:"Apr 2025",published_at:"2025-04-01",summary:"Key amendments to KSA VAT implementing regulations effective 2025, including updated compliance requirements and procedural changes.",file:"KSA VAT Implementing Regulations - Amendments (2025) April 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Interest Deduction Limitation Rules",date_display:"Apr 2025",published_at:"2025-04-01",summary:"Detailed guidance on interest deduction limitation rules under UAE corporate tax, including thin capitalisation provisions.",file:"UAE Interest Deduction Limitation Rules - April 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE MD 84: Audited FS Requirements",date_display:"Apr 2025",published_at:"2025-04-01",summary:"Ministerial Decision 84 outlines requirements for audited financial statements under UAE corporate tax regime.",file:"UAE MD 84 Audited FS Requirements - April 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT","International Tax"],title:"UAE Ministerial Decision 88 OECD Pillar Two Commentary Adoption",date_display:"Apr 2025",published_at:"2025-04-01",summary:"Ministerial Decision 88 adopts OECD Pillar Two commentary for interpretation of UAE's global minimum tax rules.",file:"UAE Ministerial Decision 88 OECD Pillar Two Commentary Adoption - April 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Non-Resident Nexus Determination",date_display:"Apr 2025",published_at:"2025-04-01",summary:"Guidelines for determining tax nexus for non-resident entities conducting business activities in the UAE.",file:"UAE Non-Resident Nexus Determination - April 2025.pdf"},
+    {jurisdiction:"UAE",authority:"FTA",category:["CT"],title:"UAE Qualifying Investment Funds",date_display:"Apr 2025",published_at:"2025-04-01",summary:"Comprehensive guide on qualifying investment funds under UAE corporate tax, including eligibility criteria and tax treatment.",file:"UAE Qualifying Investment Funds - April 2025.pdf"}
+  ];
+
+  const grid = document.getElementById('grid');
+  const loadMoreBtn = document.getElementById('loadMore');
+  const filterChips = Array.from(document.querySelectorAll('.filters .chip'));
+  const tickText = document.getElementById('tickText');
+
+  let activeJurisdiction = 'all';
+  let visibleCount = 8;
+
+  function setCounts(){
+    const counts = {
+      all: DATA.length,
+      uae: DATA.filter(x=>x.jurisdiction==='UAE').length,
+      ksa: DATA.filter(x=>x.jurisdiction==='KSA').length,
+      bahrain: DATA.filter(x=>x.jurisdiction==='Bahrain').length,
+      oman: DATA.filter(x=>x.jurisdiction==='Oman').length,
+      qatar: DATA.filter(x=>x.jurisdiction==='Qatar').length
+    };
+    filterChips.forEach(ch=>{
+      const j = ch.dataset.j;
+      ch.querySelector('.count').textContent = `• ${counts[j]}`;
+    });
+  }
+
+  function cardHTML(a){
+    const newDot = a.updated ? '<span class="newdot" title="Updated"></span>' : '';
+    const pdfTitle = a.title.replace(/"/g,'&quot;');
+    const href = fileURL(a.file);
+    return `
+      <article class="card reveal" itemscope itemtype="https://schema.org/Article" data-j="${a.jurisdiction.toLowerCase()}">
+        ${newDot}
+        <a href="${href}" target="_blank" rel="noopener" title="Open PDF: ${pdfTitle}">
+          <div class="c-pad">
+            <div class="date" itemprop="datePublished" content="${a.published_at}">${a.date_display}</div>
+            <h3 class="title" itemprop="headline">${a.title}</h3>
+            <p class="excerpt" itemprop="description">${a.summary}</p>
+            <div class="meta">
+              <span class="badge authority">${a.authority}</span>
+              ${a.category.map(c=>`<span class="badge">${c}</span>`).join('')}
+            </div>
+          </div>
+        </a>
+        <div class="actions">
+          <a class="icon-btn" href="${href}" target="_blank" rel="noopener" title="Open PDF">
+            <svg width="14" height="14"><use href="#icon-external"></use></svg>
+          </a>
+          <a class="icon-btn" href="${href}" target="_blank" rel="noopener" download title="Download PDF">
+            <svg width="14" height="14"><use href="#icon-pdf"></use></svg>
+          </a>
+        </div>
+      </article>
+    `;
+  }
+
+  let observer;
+  function revealInit(){
+    if(observer) observer.disconnect();
+    const list = grid.querySelectorAll('.reveal');
+    observer = new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting){ e.target.classList.add('in'); observer.unobserve(e.target); }
+      });
+    }, { threshold:.1 });
+    list.forEach(el=>observer.observe(el));
+  }
+
+  function render(){
+    const items = DATA.filter(a=> activeJurisdiction==='all' || a.jurisdiction.toLowerCase()===activeJurisdiction );
+    const slice = items.slice(0, visibleCount);
+    grid.innerHTML = slice.map(cardHTML).join('');
+    loadMoreBtn.style.display = (visibleCount < items.length) ? 'inline-block' : 'none';
+    revealInit();
+  }
+
+  function activateChip(j){
+    activeJurisdiction = j;
+    visibleCount = 8;
+    filterChips.forEach(b=>{
+      const isActive = b.dataset.j===j;
+      b.classList.toggle('active', isActive);
+      b.setAttribute('aria-selected', String(isActive));
+    });
+    render();
+  }
+
+  filterChips.forEach(b=>b.addEventListener('click', ()=>activateChip(b.dataset.j)));
+
+  loadMoreBtn.addEventListener('click', ()=>{
+    loadMoreBtn.classList.add('loading');
+    setTimeout(()=>{
+      visibleCount += 8;
+      render();
+      loadMoreBtn.classList.remove('loading');
+    }, 400);
+  });
+
+  let tickIdx = 0;
+  function tickRotate(){
+    const sorted = [...DATA].sort((a,b)=> new Date(b.published_at)-new Date(a.published_at));
+    const headlines = sorted.slice(0,6).map(x=>`${x.date_display} • ${x.jurisdiction} • ${x.authority}: ${x.title}`);
+    function show(){
+      if(!headlines.length) return;
+      tickText.classList.remove('show');
+      setTimeout(()=>{ tickText.textContent = headlines[tickIdx % headlines.length]; tickText.classList.add('show'); tickIdx++; }, 100);
+    }
+    show();
+    const interval = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 6000 : 3200;
+    setInterval(show, interval);
+  }
+
+  setCounts();
+  activateChip('all');
+  render();
+  tickRotate();
+})();
+</script>
 </body>
 </html>
